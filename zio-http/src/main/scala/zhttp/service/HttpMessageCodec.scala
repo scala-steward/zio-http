@@ -25,9 +25,9 @@ trait HttpMessageCodec {
   }
 
   /**
-   * Encode the [[Response]] to [io.netty.handler.codec.http.FullHttpResponse]
+   * Encode the [[UResponse]] to [io.netty.handler.codec.http.FullHttpResponse]
    */
-  def encodeResponse(jVersion: JHttpVersion, res: Response.HttpResponse): JFullHttpResponse = {
+  def encodeResponse[R](jVersion: JHttpVersion, res: Response.HttpResponse[R]): JFullHttpResponse = {
     val jHttpHeaders   =
       res.headers.foldLeft[JHttpHeaders](new JDefaultHttpHeaders()) { (jh, hh) =>
         jh.set(hh.name, hh.value)

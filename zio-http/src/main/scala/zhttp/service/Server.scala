@@ -2,7 +2,7 @@ package zhttp.service
 
 import io.netty.util.{ResourceLeakDetector => JResourceLeakDetector}
 import zhttp.core._
-import zhttp.http.{Http, Request, Response, Status, _}
+import zhttp.http.{Status, _}
 import zhttp.service.server.{LeakDetectionLevel, ServerChannelFactory, ServerChannelInitializer, ServerRequestHandler}
 import zio.{ZManaged, _}
 
@@ -28,7 +28,7 @@ sealed trait Server[-R, +E] { self =>
 
 object Server {
   private case class Settings[-R, +E](
-    http: Http[R, E, Request, Response] = Http.empty(Status.NOT_FOUND),
+    http: HttpApp[R, E] = HttpApp.empty(Status.NOT_FOUND),
     port: Int = 8080,
     leakDetectionLevel: LeakDetectionLevel = LeakDetectionLevel.SIMPLE,
     maxRequestSize: Int = 4 * 1024, // 4 kilo bytes
@@ -38,15 +38,15 @@ object Server {
   private case class Port(port: Int)                                       extends UServer
   private case class LeakDetection(level: LeakDetectionLevel)              extends UServer
   private case class MaxRequestSize(size: Int)                             extends UServer
-  private case class App[R, E](http: Http[R, E, Request, Response])        extends Server[R, E]
+  private case class App[R, E](http: HttpApp[R, E])                        extends Server[R, E]
 
-  def app[R, E](http: Http[R, E, Request, Response]): Server[R, E] = Server.App(http)
-  def maxRequestSize(size: Int): UServer                           = Server.MaxRequestSize(size)
-  def port(int: Int): UServer                                      = Server.Port(int)
-  val disableLeakDetection: UServer                                = LeakDetection(LeakDetectionLevel.DISABLED)
-  val simpleLeakDetection: UServer                                 = LeakDetection(LeakDetectionLevel.SIMPLE)
-  val advancedLeakDetection: UServer                               = LeakDetection(LeakDetectionLevel.ADVANCED)
-  val paranoidLeakDetection: UServer                               = LeakDetection(LeakDetectionLevel.PARANOID)
+  def app[R, E](http: HttpApp[R, E]): Server[R, E] = Server.App(http)
+  def maxRequestSize(size: Int): UServer           = Server.MaxRequestSize(size)
+  def port(int: Int): UServer                      = Server.Port(int)
+  val disableLeakDetection: UServer                = LeakDetection(LeakDetectionLevel.DISABLED)
+  val simpleLeakDetection: UServer                 = LeakDetection(LeakDetectionLevel.SIMPLE)
+  val advancedLeakDetection: UServer               = LeakDetection(LeakDetectionLevel.ADVANCED)
+  val paranoidLeakDetection: UServer               = LeakDetection(LeakDetectionLevel.PARANOID)
 
   /**
    * Launches the app on the provided port.
@@ -61,7 +61,7 @@ object Server {
       channelFactory <- ServerChannelFactory.Live.auto.toManaged_
       eventLoopGroup <- ZIO.access[EventLoopGroup](_.get).toManaged_
       settings        = server.settings()
-      httpH           = ServerRequestHandler(zExec, settings.http.silent)
+      httpH           = ServerRequestHandler(zExec, settings.http)
       init            = ServerChannelInitializer(httpH, settings.maxRequestSize)
       serverBootstrap = new JServerBootstrap().channelFactory(channelFactory).group(eventLoopGroup)
       _ <- ChannelFuture.asManaged(serverBootstrap.childHandler(init).bind(settings.port))

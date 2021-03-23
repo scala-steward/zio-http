@@ -2,7 +2,7 @@ package zhttp.service
 
 import io.netty.handler.codec.http.{HttpVersion => JHttpVersion}
 import zhttp.core._
-import zhttp.http.{Request, Response}
+import zhttp.http.{Request, Response, UResponse}
 import zhttp.service
 import zhttp.service.client.{ClientChannelInitializer, ClientHttpChannelReader, ClientInboundHandler}
 import zio.{Promise, Task, ZIO}
@@ -29,7 +29,7 @@ final case class Client(zx: UnsafeChannelExecutor[Any], cf: JChannelFactory[JCha
       jboo.connect()
     }
 
-  def request(request: Request): Task[Response] = for {
+  def request(request: Request): Task[UResponse] = for {
     promise <- Promise.make[Throwable, JFullHttpResponse]
     jReq = encodeRequest(JHttpVersion.HTTP_1_1, request)
     _    <- asyncRequest(request, jReq, promise).catchAll(cause => promise.fail(cause)).fork
@@ -45,6 +45,6 @@ object Client {
     zx <- UnsafeChannelExecutor.make[Any]
   } yield service.Client(zx, cf, el)
 
-  def request(req: Request): ZIO[EventLoopGroup with ChannelFactory, Throwable, Response] =
+  def request(req: Request): ZIO[EventLoopGroup with ChannelFactory, Throwable, UResponse] =
     make.flatMap(_.request(req))
 }
