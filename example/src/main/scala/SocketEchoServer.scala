@@ -10,7 +10,7 @@ object SocketEchoServer extends App {
     Socket.forall[WebSocketFrame](msg => ZStream.repeat(msg).schedule(Schedule.spaced(1 second)).take(10))
 
   private val app =
-    Http.collectM[Request] {
+    HttpChannel.collectM[Request] {
       case Method.GET -> Root / "greet" / name  => UIO(Response.text(s"Greetings {$name}!"))
       case Method.GET -> Root / "subscriptions" => socket.asResponse(None)
     }
